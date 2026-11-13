@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from supabase import create_client
+from receptionist import router as receptionist_router
 
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -26,6 +27,7 @@ if not all([supabase_url, supabase_key, business_slug]):
 supabase = create_client(supabase_url, supabase_key)
 
 app = FastAPI(title="ClinicFlow AI")
+app.include_router(receptionist_router)
 
 app.add_middleware(
     CORSMiddleware,
