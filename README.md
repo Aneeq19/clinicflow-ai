@@ -1,59 +1,97 @@
 # ClinicFlow AI
 
-A reusable business receptionist platform in development. The first demonstration uses **Pearl Dental Care, Karachi**, a fictional dental clinic.
+A business receptionist demo for **Pearl Dental Care, Karachi**, a fictional clinic.
 
-## Current progress
+## Implemented
 
-The frontend and backend source are now uploaded to this repository.
+- React website, sample services and sample business hours.
+- Appointment requests saved through FastAPI to Supabase, starting with `New` status.
+- Floating receptionist with quick answers, typed chat and short conversation context.
+- Cloudflare Workers AI integration with a 12-second overall provider deadline and no application retries.
+- Rule-based fallback on missing credentials, provider errors, timeouts and malformed responses.
+- Deterministic replies for pricing, confirmation, medical advice and handoff questions.
+- Input limits and process-local chat rate limiting (15 valid requests per IP per minute).
+- Source labels distinguish Cloudflare replies, rule replies and fallback replies.
 
-The following local flows were tested by the developer during guided development:
+## Verification
 
-- React homepage with fictional sample services and clinic hours.
-- Appointment form validation.
-- FastAPI health endpoint and Supabase connection check.
-- Appointment creation through the API and website, with saved rows verified in Supabase.
-- Floating reception widget with quick answers and navigation to the appointment form.
+The developer previously verified website appointment saving against Supabase locally.
+The new chat route is covered by automated tests using synthetic requests and mocked Cloudflare responses. These cover successful replies, provider errors, timeout handling, protected topics, Urdu fallback, input limits and rate limiting. A mocked provider success is not proof of live account access.
 
-The current widget uses predefined answers. AI-generated chat has not passed its connection test. Gemini tests encountered availability errors. Cloudflare Workers AI integration is the next planned milestone.
+**Live Cloudflare generation and language quality still require verification using the developer's local credentials.**
 
-## Stack
+## Run locally on Windows
 
-- React and Vite, with Oxlint. Tailwind integration is pending.
-- Python and FastAPI.
-- Supabase Postgres. Supabase Auth integration for the owner dashboard is pending.
-- Planned Cloudflare Workers AI integration.
-- Planned Cloudflare Pages frontend hosting and separate Python backend hosting.
+From the project root, install backend dependencies:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+```
+
+On a new machine, create the environment first with `py -m venv backend/.venv`.
+Copy `backend/.env.example` to `backend/.env` and fill in real settings locally. An existing `.env` should be preserved.
+
+Required settings:
+
+- `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `BUSINESS_SLUG`
+- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
+- Optional `CLOUDFLARE_MODEL`, defaulting to `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
+
+Start the backend in one PowerShell terminal:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m uvicorn main:app --reload
+```
+
+Start the frontend in another terminal from the project root:
+
+```powershell
+cd frontend
+npm.cmd ci
+npm.cmd run dev
+```
+
+Open the Vite local URL, normally `http://localhost:5173`. Local CORS currently permits port 5173. Chat defaults to `http://127.0.0.1:8000`; an optional `VITE_API_BASE_URL` can configure the chat backend. The appointment form still uses its existing local URL. Deployment configuration is pending.
+
+## Test chat
+
+From the project root:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m unittest discover -s backend -p test_receptionist.py -v
+```
+
+Open `/docs` on the backend and try `POST /chat`:
+
+```json
+{"message": "What services do you offer?", "history": [], "use_ai": true}
+```
+
+A live success has `source: "cloudflare"`. A provider failure gives `source: "fallback"`, a safe reply and a non-sensitive reason code. `use_ai: false` exercises rules without calling Cloudflare. Rule replies for protected topics intentionally skip the model even when AI is enabled.
+
+The quick buttons remain available if the backend is down. Chat cannot create, confirm or change appointments. Use the appointment form to request a visit.
 
 ## Remaining milestones
 
-- [x] Upload the application source to GitHub.
+- [x] Upload source to GitHub.
+- [x] Implement Cloudflare chat, fallback and typed widget.
+- [ ] Verify live Cloudflare access and English, Urdu and Roman Urdu quality.
+- [ ] Move demo facts into editable, business-scoped database settings.
+- [ ] Build owner authentication and authorization.
+- [ ] Add appointment status management, leads and stored-data statistics.
+- [ ] Complete premium responsive styling and externally embeddable widget.
+- [ ] Add production rate limits, abuse controls and complete access-control tests.
 - [ ] Pin backend dependencies and verify a clean installation.
-- [ ] Connect typed AI chat with bounded timeouts and rule-based fallback.
-- [ ] Test English, Urdu and Roman Urdu conversations and unsupported questions.
-- [ ] Build authenticated admin access and authorization checks.
-- [ ] Add appointment management and editable business configuration.
-- [ ] Add statistics based on stored events.
-- [ ] Complete responsive design and externally embeddable widget.
-- [ ] Test public access restrictions, request limits and failure paths.
 - [ ] Deploy and test the public demo.
-- [ ] Add sales demo script and customer onboarding documentation.
+- [ ] Add sales script and first-customer onboarding documentation.
 
-## Demo boundaries
+## Demo and security boundaries
 
-Use synthetic customer details only. No real clinic address, doctors, certifications, reviews or testimonials are represented. Appointment requests start with `New` status and require reception confirmation. The product must not provide diagnosis or prescriptions.
+Use synthetic details only. No real doctors, addresses, testimonials or certifications are represented. Business settings and chat facts are still demo constants. The chatbot has no database, scheduling or messaging tools. Unknown prices and contact details are unavailable. Appointment requests require reception confirmation.
 
-Business IDs and database access restrictions are an initial foundation. Multi-tenant authorization and isolation have not been completed or tested. Production readiness is pending.
+Language-model answers can be inaccurate and prompts alone cannot guarantee factual or medical safety. Protected-topic rules are an initial guard, not a complete safety classifier. Broader adversarial testing is pending. Chat transcripts are kept in browser memory for the current page session and are not stored by this application. Recent messages are sent to Cloudflare when AI is requested. Basic conversation analytics and human handoff delivery are pending.
 
-## Secrets
+Tenant IDs are only an initial foundation. Owner authorization and multi-tenant isolation have not been completed or tested. Rate limiting is in process memory and resets on restart. The public demo is not production ready.
 
-Keep actual credentials in `backend/.env` and server environment settings. Use `backend/.env.example` as the configuration template. Never place private keys in React source or `VITE_` variables. Git ignore rules do not remove previously committed secrets.
-
-## Continue development on Windows
-
-Pull remote changes before editing locally, after committing or otherwise preserving any local changes:
-
-```powershell
-git pull --ff-only
-```
-
-Cloudflare setup requires an Account ID and a Workers AI API token stored only in the backend environment. The sample settings are prepared, but the integration is not implemented yet.
+Keep secrets in `backend/.env` and hosting environment settings. Never put tokens in React source, `VITE_` variables or commits. Keep server logs free of customer text and credentials.
