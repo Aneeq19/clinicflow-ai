@@ -107,6 +107,9 @@ export default function App() {
         <span style={{ marginLeft: 12, color: '#c7e7db' }}>
           Fictional demo
         </span>
+        <a href="/admin" style={{ marginLeft: 16, color: '#c7e7db' }}>
+          Owner login
+        </a>
       </header>
 
       <main
