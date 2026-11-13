@@ -2,34 +2,32 @@
 
 A reusable business receptionist platform in development. The first demonstration uses **Pearl Dental Care, Karachi**, a fictional dental clinic.
 
-## Current repository status
+## Current progress
 
-This repository currently contains setup documentation, ignore rules and an environment template. The application source is on the developer's Windows PC and has **not yet been uploaded**. The project cannot be run from this repository alone yet.
-
-## Development progress
+The frontend and backend source are now uploaded to this repository.
 
 The following local flows were tested by the developer during guided development:
 
-- React homepage with fictional demo services and working hours.
+- React homepage with fictional sample services and clinic hours.
 - Appointment form validation.
 - FastAPI health endpoint and Supabase connection check.
-- Appointment creation through the API and the website, with saved rows verified in Supabase.
-- Floating reception widget with quick-answer buttons and navigation to the appointment form.
+- Appointment creation through the API and website, with saved rows verified in Supabase.
+- Floating reception widget with quick answers and navigation to the appointment form.
 
-The current widget uses predefined answers. AI-generated chat has not passed its connection test yet.
+The current widget uses predefined answers. AI-generated chat has not passed its connection test. Gemini tests encountered availability errors. Cloudflare Workers AI integration is the next planned milestone.
 
-## Planned stack
+## Stack
 
-- React, Vite and Tailwind CSS. Tailwind integration is pending.
+- React and Vite, with Oxlint. Tailwind integration is pending.
 - Python and FastAPI.
-- Supabase Postgres and planned Supabase Auth for the admin dashboard.
-- Cloudflare Workers AI integration planned after Gemini availability errors during testing.
-- Cloudflare Pages frontend hosting and a separate Python backend host.
+- Supabase Postgres. Supabase Auth integration for the owner dashboard is pending.
+- Planned Cloudflare Workers AI integration.
+- Planned Cloudflare Pages frontend hosting and separate Python backend hosting.
 
 ## Remaining milestones
 
-- [ ] Upload and inspect the actual frontend and backend source.
-- [ ] Pin dependencies and verify installation from a clean checkout.
+- [x] Upload the application source to GitHub.
+- [ ] Pin backend dependencies and verify a clean installation.
 - [ ] Connect typed AI chat with bounded timeouts and rule-based fallback.
 - [ ] Test English, Urdu and Roman Urdu conversations and unsupported questions.
 - [ ] Build authenticated admin access and authorization checks.
@@ -42,14 +40,20 @@ The current widget uses predefined answers. AI-generated chat has not passed its
 
 ## Demo boundaries
 
-Use synthetic customer details only. No real clinic address, doctors, certifications, reviews or testimonials are represented. An appointment request starts with `New` status and requires reception confirmation. The product must not provide diagnosis or prescriptions.
+Use synthetic customer details only. No real clinic address, doctors, certifications, reviews or testimonials are represented. Appointment requests start with `New` status and require reception confirmation. The product must not provide diagnosis or prescriptions.
 
 Business IDs and database access restrictions are an initial foundation. Multi-tenant authorization and isolation have not been completed or tested. Production readiness is pending.
 
 ## Secrets
 
-Keep actual credentials in `backend/.env` and server environment settings. Use `backend/.env.example` as the configuration template. Never place private keys in React source or `VITE_` variables. Git ignore rules do not remove secrets that were already committed.
+Keep actual credentials in `backend/.env` and server environment settings. Use `backend/.env.example` as the configuration template. Never place private keys in React source or `VITE_` variables. Git ignore rules do not remove previously committed secrets.
 
-## Next session
+## Continue development on Windows
 
-Upload the existing Windows project after reviewing the files staged for commit. This remote repository already has initial commits, so incorporate those commits before pushing the local project. Verify the source against the locally tested application before continuing implementation.
+Pull remote changes before editing locally, after committing or otherwise preserving any local changes:
+
+```powershell
+git pull --ff-only
+```
+
+Cloudflare setup requires an Account ID and a Workers AI API token stored only in the backend environment. The sample settings are prepared, but the integration is not implemented yet.
