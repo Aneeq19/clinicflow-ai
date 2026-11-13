@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from supabase import create_client
 from receptionist import router as receptionist_router
+from owner_admin import router as owner_router
 
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -27,7 +28,9 @@ if not all([supabase_url, supabase_key, business_slug]):
 supabase = create_client(supabase_url, supabase_key)
 
 app = FastAPI(title="ClinicFlow AI")
+app.state.database = supabase
 app.include_router(receptionist_router)
+app.include_router(owner_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,9 +38,17 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_methods=["POST"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+
+@app.middleware("http")
+async def prevent_admin_caching(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/admin"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/health")
