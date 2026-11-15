@@ -1,124 +1,88 @@
 # ClinicFlow AI
 
-A business receptionist demo for **Pearl Dental Care, Karachi**, a fictional clinic.
+An AI receptionist demo for **Pearl Dental Care, Karachi**, a fictional business. Built with React + Vite, FastAPI, Supabase and Cloudflare Workers AI. Use synthetic customer details only.
 
-## Implemented
+**Status:** application code and automated checks are prepared. The existing local website, appointment collection, AI responses and owner dashboard were tested by the builder. The new settings/embedding release still needs migration 003 in the builder's Supabase project, local visual checks and public deployment. No public demo URL is claimed here.
 
-- React website, sample services and sample business hours.
-- Appointment requests saved through FastAPI to Supabase, starting with `New` status.
-- Floating receptionist with quick answers, typed chat and short conversation context.
-- Cloudflare Workers AI integration with a 12-second overall provider deadline and no application retries.
-- Rule-based fallback on missing credentials, provider errors, timeouts and malformed responses.
-- Deterministic replies for pricing, confirmation, medical advice and handoff questions.
-- Input limits and process-local chat rate limiting (15 valid requests per IP per minute).
-- Source labels distinguish Cloudflare replies, rule replies and fallback replies.
-- Owner login at `/admin`, verified Supabase tokens and explicit business membership checks.
-- Business-scoped appointment lists, stored-data counts, pagination and status updates.
-- Manual approval prompts before confirming or cancelling requests and stale-update conflict checks.
+## Continue on Windows
 
-## Verification
+Start with **[tomorrow's exact checklist](docs/START_HERE.md)**. Pull the repository, run `backend/sql/003_business_settings.sql` in Supabase, install requirements and restart both servers. Keep your existing private `backend/.env`.
 
-The developer previously verified website appointment saving against Supabase locally.
-The new chat route is covered by automated tests using synthetic requests and mocked Cloudflare responses. These cover successful replies, provider errors, timeout handling, protected topics, Urdu fallback, input limits and rate limiting. A mocked provider success is not proof of live account access.
+## Included
 
-**The developer has verified live Cloudflare service and Roman Urdu replies, plus the initial safety checks. Owner login against the live Supabase account is the next local verification step.**
+- Responsive fictional-clinic website with editable introduction, services, supplied prices, hours, FAQs, branding and contact details.
+- English, Urdu and Roman Urdu reception chat through Cloudflare Workers AI, with a rule-based fallback and explicit response-source labels.
+- No medical diagnosis/prescriptions, unsupported prices or automatic booking confirmations. Protected intents use deterministic responses; general AI replies remain probabilistic.
+- Validated appointment requests stored in Supabase. UI retry keys prevent duplicate inserts when the same unchanged request is retried.
+- Supabase Auth owner login, membership checks on every owner API call and server-scoped private appointment access.
+- Owner appointment list, pagination, stored counts and status edits: New, Contacted, Confirmed, Completed, Cancelled.
+- Business settings editor with stale-edit conflict detection. Saved settings power the public website, form and receptionist.
+- Anonymous conversation event counts; events store no chat text or phone numbers. Analytics writes are best effort.
+- External `/embed.js` launcher and `/widget` iframe with chat and appointment request form.
+- SQL migrations, pinned Python runtime dependencies, GitHub checks and a Render deployment blueprint.
 
-The owner API has 10 automated tests using synthetic users and an in-memory database stand-in. Cases include missing/expired tokens, non-owners, cross-business access denial, revoked membership, login limits, scoped counts and stale status conflicts. These tests do not certify full multi-tenant security or replace live Supabase authorization checks.
+## Architecture
 
-## Run locally on Windows
+The public React app calls the FastAPI backend. The backend loads public business settings, validates requests and performs database operations with a private Supabase service key. Owner calls additionally verify a Supabase Auth token and business-owner membership. Only the backend calls the AI provider.
 
-From the project root, install backend dependencies:
+This release serves **one configured business per deployment**. Business IDs scope requests, but shared multi-tenant SaaS security and self-service onboarding are not complete. Reuse the code with separate deployments until tenant routing, authorization and isolation are implemented and independently tested.
+
+```text
+frontend/src/          Website, owner dashboard, settings and embedded reception
+frontend/public/      External embed script and Cloudflare Pages routing/headers
+backend/main.py       Public API, appointment validation and retry protection
+backend/owner_admin.py  Authenticated owner routes
+backend/business_settings.py  Validated public settings model
+backend/receptionist.py  AI provider, safety rules, fallback and event recording
+backend/sql/          Ordered database migrations
+backend/test_*.py     Synthetic backend tests
+render.yaml          Backend deployment blueprint
+```
+
+## Environment
+
+`backend/.env.example` documents private server variables. Copy values privately into `backend/.env` on your PC or into the backend host's environment settings. Never commit that file.
+
+`frontend/.env.example` contains only `VITE_API_BASE_URL`, a public backend address. No Supabase secret, AI token or password belongs in any `VITE_` variable.
+
+The provider defaults to `@cf/meta/llama-3.3-70b-instruct-fp8-fast`. Gemini is not required for this release. Provider access, quotas and billing belong to your own account.
+
+## Verify on Windows
+
+Run one command at a time. Backend checks use synthetic in-memory database/auth doubles and no live credentials.
 
 ```powershell
-.\backend\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+cd "$env:USERPROFILE\Projects\clinicflow-ai\backend"
 ```
-
-On a new machine, create the environment first with `py -m venv backend/.venv`.
-Copy `backend/.env.example` to `backend/.env` and fill in real settings locally. An existing `.env` should be preserved.
-
-Required settings:
-
-- `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `BUSINESS_SLUG`
-- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
-- Optional `CLOUDFLARE_MODEL`, defaulting to `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
-
-Start the backend in one PowerShell terminal:
 
 ```powershell
-cd backend
-.\.venv\Scripts\python.exe -m uvicorn main:app --reload
+.\.venv\Scripts\python.exe -m unittest test_receptionist test_owner_admin test_business_settings -v
 ```
 
-Start the frontend in another terminal from the project root:
+In a separate terminal:
 
 ```powershell
-cd frontend
-npm.cmd ci
-npm.cmd run dev
+cd "$env:USERPROFILE\Projects\clinicflow-ai\frontend"
 ```
-
-Open the Vite local URL, normally `http://localhost:5173`. Local CORS currently permits port 5173. Chat defaults to `http://127.0.0.1:8000`; an optional `VITE_API_BASE_URL` can configure the chat backend. The appointment form still uses its existing local URL. Deployment configuration is pending.
-
-## Test chat
-
-From the project root:
 
 ```powershell
-.\backend\.venv\Scripts\python.exe -m unittest discover -s backend -p test_receptionist.py -v
+npm.cmd run lint
 ```
-
-Open `/docs` on the backend and try `POST /chat`:
-
-```json
-{"message": "What services do you offer?", "history": [], "use_ai": true}
-```
-
-A live success has `source: "cloudflare"`. A provider failure gives `source: "fallback"`, a safe reply and a non-sensitive reason code. `use_ai: false` exercises rules without calling Cloudflare. Rule replies for protected topics intentionally skip the model even when AI is enabled.
-
-The quick buttons remain available if the backend is down. Chat cannot create, confirm or change appointments. Use the appointment form to request a visit.
-
-## Remaining milestones
-
-- [x] Upload source to GitHub.
-- [x] Implement Cloudflare chat, fallback and typed widget.
-- [x] Verify live Cloudflare access and initial English / Roman Urdu replies.
-- [ ] Complete broader Urdu and adversarial conversation testing.
-- [ ] Move demo facts into editable, business-scoped database settings.
-- [x] Implement owner authentication and business-membership authorization.
-- [ ] Verify live owner login and status management on the developer's Supabase project.
-- [x] Implement appointment status management and stored appointment counts.
-- [ ] Add lead and conversation analytics based on stored events.
-- [ ] Complete premium responsive styling and externally embeddable widget.
-- [ ] Add production rate limits, abuse controls and complete access-control tests.
-- [ ] Pin backend dependencies and verify a clean installation.
-- [ ] Deploy and test the public demo.
-- [ ] Add sales script and first-customer onboarding documentation.
-
-## Demo and security boundaries
-
-Use synthetic details only. No real doctors, addresses, testimonials or certifications are represented. Business settings and chat facts are still demo constants. The chatbot has no database, scheduling or messaging tools. Unknown prices and contact details are unavailable. Appointment requests require reception confirmation.
-
-Language-model answers can be inaccurate and prompts alone cannot guarantee factual or medical safety. Protected-topic rules are an initial guard, not a complete safety classifier. Broader adversarial testing is pending. Chat transcripts are kept in browser memory for the current page session and are not stored by this application. Recent messages are sent to Cloudflare when AI is requested. Basic conversation analytics and human handoff delivery are pending.
-
-Owner routes verify the Supabase user token on every request and check membership for the configured business before accessing appointment data. The service key bypasses RLS, so these backend filters are required. Cross-business denial is covered by synthetic API tests, but complete multi-tenant isolation and live end-to-end security verification are still pending. Rate limiting is in process memory and resets on restart. The public demo is not production ready.
-
-Keep secrets in `backend/.env` and hosting environment settings. Never put tokens in React source, `VITE_` variables or commits. Keep server logs free of customer text and credentials.
-
-## Owner dashboard
-
-1. Create an owner account in Supabase Authentication → Users. Keep the password private.
-2. Run `backend/sql/002_business_owner.sql` in the Supabase SQL Editor after replacing `YOUR_OWNER_EMAIL` in both places. Confirm the result shows the intended business and `owner` role.
-3. Restart the backend after pulling the code. No additional frontend credentials are needed.
-4. Visit `http://localhost:5173/admin` and use the created Auth email/password.
-5. Verify total, New and Confirmed counts against the stored appointment rows. Change a synthetic request to Contacted, save and refresh to verify persistence. Confirmed and Cancelled require an approval prompt.
-6. Sign out and verify that the list disappears. A new browser page or refresh requires signing in again.
-
-Tokens stay in React memory. The demo does not implement refresh-token persistence. Sign out clears this page's token and data, while an already copied JWT can remain valid until expiry. Server-side logout/session revocation, MFA and further production session hardening are pending. Membership removal is checked on the next API request. Production traffic must use HTTPS.
-
-Run owner tests from the project root:
 
 ```powershell
-.\backend\.venv\Scripts\python.exe -m unittest discover -s backend -p test_owner_admin.py -v
+npm.cmd run build
 ```
 
-Admin routes send `Cache-Control: no-store`. Appointment counts are fetched live, not fabricated. Dashboard cards currently count appointment requests, not chat inquiries. Business settings editors and lead/conversation dashboards remain pending.
+Current local verification: **24 backend tests**, frontend lint and production build pass. See [QA evidence and remaining checks](docs/QA.md). Passing automated checks does not establish a live deployment or complete production security.
+
+## Guides
+
+- [Windows handoff](docs/START_HERE.md)
+- [Render + Cloudflare Pages deployment](docs/DEPLOYMENT.md)
+- [Security boundaries and remaining production work](docs/SECURITY.md)
+- [Sales demo and first customer onboarding](docs/SALES_AND_ONBOARDING.md)
+- [Future official WhatsApp integration](docs/WHATSAPP_PLAN.md)
+
+## Deferred
+
+Public deployment and live smoke tests, production privacy/retention and backup operations, distributed abuse protection, full tenant isolation, self-service subscriptions, external scheduling confirmation and WhatsApp. Human handoff currently displays a supplied contact; it does not send messages or notify reception automatically.

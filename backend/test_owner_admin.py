@@ -1,4 +1,6 @@
 import copy
+from uuid import uuid4
+from postgrest.exceptions import APIError
 import os
 import unittest
 from types import SimpleNamespace
@@ -26,6 +28,7 @@ class Query:
         self.filters = []
         self.bounds = None
         self.update_values = None
+        self.insert_values = None
 
     def select(self, *args, **kwargs):
         return self
@@ -49,7 +52,17 @@ class Query:
         self.update_values = values
         return self
 
+    def insert(self, values):
+        self.insert_values = values
+        return self
+
     def execute(self):
+        if self.insert_values:
+            row = {"id": str(uuid4()), "created_at": "2026-11-15T00:00:00Z", **self.insert_values}
+            if row.get("request_key") and any(existing.get("request_key") == row["request_key"] and existing.get("business_id") == row["business_id"] for existing in self.database.rows[self.table]):
+                raise APIError({"message": "Duplicate", "code": "23505", "details": "", "hint": ""})
+            self.database.rows[self.table].append(row)
+            return SimpleNamespace(data=[copy.deepcopy(row)], count=1)
         rows = [row for row in self.database.rows[self.table]
                 if all(row.get(name) == value for name, value in self.filters)]
         count = len(rows)
@@ -81,7 +94,7 @@ class OwnerTests(unittest.TestCase):
         }
         other = {**appointment, "id": OTHER_ROW, "business_id": OTHER_BUSINESS, "customer_name": "Other Business"}
         self.database.rows = {
-            "businesses": [{"id": BUSINESS, "name": "Pearl Dental Care, Karachi", "slug": "pearl-dental-care"}],
+            "businesses": [{"id": BUSINESS, "name": "Pearl Dental Care, Karachi", "slug": "pearl-dental-care", "timezone": "Asia/Karachi", "settings": {}, "settings_version": 0}],
             "business_members": [{"business_id": BUSINESS, "user_id": OWNER, "role": "owner"}],
             "appointments": [appointment, other],
         }

@@ -1,23 +1,29 @@
 import os
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import receptionist
+from business_settings import BusinessSettings
 
 
 class ReceptionistTests(unittest.TestCase):
     def setUp(self):
         receptionist.chat_requests.clear()
+        self.business_patch = patch.object(receptionist, 'load_business', return_value=(
+            {'id': '10000000-0000-0000-0000-000000000001'}, BusinessSettings()))
+        self.business_patch.start()
         app = FastAPI()
+        app.state.database = MagicMock()
         app.include_router(receptionist.router)
         self.client = TestClient(app)
 
     def tearDown(self):
         self.client.close()
+        self.business_patch.stop()
 
     def test_protected_topics_never_call_provider(self):
         cases = [

@@ -1,10 +1,13 @@
 import os
+import hashlib
+import json
+from uuid import UUID
+from postgrest.exceptions import APIError
 from collections import defaultdict, deque
 from datetime import date, datetime, time
 from pathlib import Path
 from threading import Lock
 from time import monotonic
-from typing import Literal
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
@@ -12,6 +15,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from supabase import create_client
+from supabase.client import ClientOptions
+from business_settings import load_business
 from receptionist import router as receptionist_router
 from owner_admin import router as owner_router
 
@@ -25,20 +30,26 @@ business_slug = os.getenv("BUSINESS_SLUG")
 if not all([supabase_url, supabase_key, business_slug]):
     raise RuntimeError("Required settings are missing from backend/.env")
 
-supabase = create_client(supabase_url, supabase_key)
+supabase = create_client(supabase_url, supabase_key, options=ClientOptions(
+    postgrest_client_timeout=10, postgrest_client_retry=False,
+    auto_refresh_token=False, persist_session=False,
+))
 
 app = FastAPI(title="ClinicFlow AI")
 app.state.database = supabase
 app.include_router(receptionist_router)
 app.include_router(owner_router)
 
+allowed_origins = [origin.strip() for origin in os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+).split(",") if origin.strip()]
+if "*" in allowed_origins:
+    raise RuntimeError("ALLOWED_ORIGINS must list explicit frontend origins.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST", "PATCH", "PUT"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -84,14 +95,11 @@ def database_health():
 class AppointmentRequest(BaseModel):
     customer_name: str = Field(min_length=1, max_length=100)
     phone: str = Field(min_length=7, max_length=30)
-    service: Literal[
-        "Dental checkup",
-        "Teeth cleaning",
-        "Restorative care",
-    ]
+    service: str = Field(min_length=1, max_length=100)
     preferred_date: date
     preferred_time: time
     message: str = Field(default="", max_length=500)
+    request_key: UUID | None = None
 
     @field_validator("customer_name", "phone", mode="before")
     @classmethod
@@ -119,7 +127,7 @@ class AppointmentRequest(BaseModel):
     @classmethod
     def validate_time(cls, value):
         if value.tzinfo is not None:
-            raise ValueError("Use Karachi time without a timezone offset.")
+            raise ValueError("Use the business local time without a timezone offset.")
         return value
 
 
@@ -156,35 +164,28 @@ def create_appointment(appointment: AppointmentRequest, request: Request):
 
         timestamps.append(current_time)
 
+    business, settings = load_business(supabase)
+    payload = appointment.model_dump(mode="json", exclude={"request_key"})
+    fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+    if appointment.request_key:
+        existing = existing_appointment(supabase, business["id"], appointment.request_key, fingerprint)
+        if existing:
+            return existing
+    if appointment.service not in {service.name for service in settings.services}:
+        raise HTTPException(422, "Select a currently listed service. Refresh the form.")
     preferred_datetime = datetime.combine(
-        appointment.preferred_date,
-        appointment.preferred_time,
-        tzinfo=ZoneInfo("Asia/Karachi"),
+        appointment.preferred_date, appointment.preferred_time,
+        tzinfo=ZoneInfo(settings.timezone),
     )
-
-    if preferred_datetime <= datetime.now(ZoneInfo("Asia/Karachi")):
-        raise HTTPException(
-            status_code=422,
-            detail="Please choose a future date and time in Karachi.",
-        )
+    if preferred_datetime <= datetime.now(ZoneInfo(settings.timezone)):
+        raise HTTPException(422, "Please choose a future date and time in the business timezone.")
 
     try:
-        business = (
-            supabase.table("businesses")
-            .select("id")
-            .eq("slug", business_slug)
-            .limit(1)
-            .execute()
-        )
-
-        if not business.data:
-            raise HTTPException(
-                status_code=503,
-                detail="Business configuration is unavailable.",
-            )
-
-        appointment_data = appointment.model_dump(mode="json")
-        appointment_data["business_id"] = business.data[0]["id"]
+        appointment_data = dict(payload)
+        if appointment.request_key:
+            appointment_data["request_key"] = str(appointment.request_key)
+            appointment_data["request_fingerprint"] = fingerprint
+        appointment_data["business_id"] = business["id"]
         appointment_data["status"] = "New"
 
         saved = (
@@ -201,6 +202,12 @@ def create_appointment(appointment: AppointmentRequest, request: Request):
 
     except HTTPException:
         raise
+    except APIError as error:
+        if error.code == "23505" and appointment.request_key:
+            existing = existing_appointment(supabase, business["id"], appointment.request_key, fingerprint)
+            if existing:
+                return existing
+        raise HTTPException(503, "Could not save the request. Retry without changing the form.") from None
     except Exception:
         raise HTTPException(
             status_code=503,
@@ -212,3 +219,24 @@ def create_appointment(appointment: AppointmentRequest, request: Request):
         "status": "New",
         "message": "Appointment request received. Reception must confirm it.",
     }
+
+
+@app.get("/business")
+def public_business():
+    business, settings = load_business(supabase)
+    return {"settings": settings.model_dump(), "version": business.get("settings_version", 0), "is_demo": True}
+
+
+def existing_appointment(database, business_id, request_key, fingerprint):
+    try:
+        result = (database.table("appointments").select("id,status,request_fingerprint")
+                  .eq("business_id", business_id).eq("request_key", str(request_key)).limit(1).execute())
+    except Exception:
+        raise HTTPException(503, "Could not check the previous request. Please retry later.") from None
+    if not result.data:
+        return None
+    row = result.data[0]
+    if row.get("request_fingerprint") != fingerprint:
+        raise HTTPException(409, "This request reference was already used. Change a field to start a new request.")
+    return {"request_id": row["id"], "status": row["status"],
+            "message": "This appointment request was already received. Reception handles confirmation."}

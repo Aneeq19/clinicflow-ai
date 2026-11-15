@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from supabase import create_client
 from supabase.client import ClientOptions
 from supabase_auth.errors import AuthApiError
+from business_settings import SettingsDocument, load_business
 
 
 router = APIRouter(prefix="/admin", tags=["Owner dashboard"])
@@ -219,3 +220,36 @@ def update_status(appointment_id: UUID, body: StatusUpdate, request: Request, ow
     if not existing.data:
         raise HTTPException(404, "Appointment not found.")
     raise HTTPException(409, "Status changed since you loaded it. Refresh and try again.")
+
+
+@router.get("/settings", response_model=SettingsDocument)
+def get_settings(request: Request, owner: Owner):
+    business, settings = load_business(request.app.state.database, owner.business_id)
+    return SettingsDocument(settings=settings, version=business.get("settings_version", 0))
+
+
+@router.put("/settings", response_model=SettingsDocument)
+def save_settings(body: SettingsDocument, request: Request, owner: Owner):
+    try:
+        saved = (
+            request.app.state.database.table("businesses")
+            .update({"name": body.settings.name, "timezone": body.settings.timezone,
+                     "settings": body.settings.model_dump(), "settings_version": body.version + 1})
+            .eq("id", owner.business_id).eq("settings_version", body.version).execute()
+        )
+    except Exception:
+        raise HTTPException(503, "Could not save settings. Check that migration 003 has been run.") from None
+    if not saved.data:
+        raise HTTPException(409, "Settings changed in another session. Reload settings before saving.")
+    return SettingsDocument(settings=body.settings, version=body.version + 1)
+
+
+@router.get("/chat-stats")
+def chat_stats(request: Request, owner: Owner):
+    try:
+        result = request.app.state.database.rpc("business_chat_stats", {"p_business_id": owner.business_id}).execute()
+        if not result.data:
+            raise ValueError()
+        return {key: int(result.data[0][key]) for key in ("messages", "conversations", "fallback_messages")}
+    except Exception:
+        raise HTTPException(503, "Chat statistics unavailable. Check migration 003.") from None
