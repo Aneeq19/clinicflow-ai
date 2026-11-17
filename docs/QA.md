@@ -19,3 +19,7 @@ The builder reported the local homepage, request submission/database row, Englis
 Use START_HERE.md after running migration 003. Verify the current release with the real local Supabase connection and existing owner. Confirm settings save, public reload, chat, status changes and iframe appointment submission. Verify desktop/mobile appearance and keyboard operation in a real browser.
 
 A real-browser screenshot run was unavailable in the build environment; visual/mobile correctness is not claimed. Run public smoke tests after actual deployment. Check GitHub Actions status after the commit; local checks do not establish that a remote workflow has run.
+
+## Cloudflare Worker adapter
+
+A separate Workers-native JavaScript backend now implements the public/owner API contract. 21 synthetic Node tests pass and cover auth denial, cross-business access denial, optimistic writes, validation, Python-compatible request fingerprints, sequential/concurrent retries, pricing/medical/handoff protection, AI failure fallback, anonymous events, CORS, rate-limit failure and body-size bounds. Wrangler dry-run checks configuration and bundle without deploying it. Live checks in CLOUDFLARE_DEPLOYMENT.md remain pending. Python backend checks above describe the original backend, not this runtime.

@@ -2,7 +2,11 @@
 
 An AI receptionist demo for **Pearl Dental Care, Karachi**, a fictional business. Built with React + Vite, FastAPI, Supabase and Cloudflare Workers AI. Use synthetic customer details only.
 
-**Status:** the builder reports migration 003, public settings changes, chatbot supplied-price answers and embedded appointment/status flows verified locally. Automated checks are documented below. Public deployment is still pending; no public demo URL is claimed here. A card-free demo deployment path is documented for Back4app Containers.
+**Status:** the builder reports migration 003, public settings changes, chatbot supplied-price answers and embedded appointment/status flows verified locally. Automated checks are documented below. Public deployment is still pending; no public demo URL is claimed here. A Cloudflare-native backend adapter is now included for Workers + Pages deployment; live integration checks remain pending.
+
+## Card-free Cloudflare deployment
+
+Follow **[Workers + Pages deployment](docs/CLOUDFLARE_DEPLOYMENT.md)**. The `cloudflare-worker/` adapter preserves the current frontend API and Supabase data using Workers-native JavaScript and an AI binding. It avoids external container hosts. Its synthetic tests and Wrangler bundle check do not establish a live deployment. The original Python backend remains available for local use; changes to one backend do not automatically update the other.
 
 ## Continue on Windows
 
@@ -35,7 +39,8 @@ backend/owner_admin.py  Authenticated owner routes
 backend/business_settings.py  Validated public settings model
 backend/receptionist.py  AI provider, safety rules, fallback and event recording
 backend/sql/          Ordered database migrations
-backend/test_*.py     Synthetic backend tests
+backend/test_*.py     Synthetic Python backend tests
+cloudflare-worker/    Cloudflare-native API adapter, tests and deployment configuration
 render.yaml          Backend deployment blueprint
 ```
 
@@ -77,6 +82,7 @@ Current local verification: **24 backend tests**, frontend lint and production b
 
 ## Guides
 
+- [Cloudflare Workers + Pages deployment](docs/CLOUDFLARE_DEPLOYMENT.md)
 - [Windows handoff](docs/START_HERE.md)
 - [Card-free Back4app Containers demo deployment](docs/BACK4APP_DEPLOYMENT.md)
 - [Render + Cloudflare Pages deployment](docs/DEPLOYMENT.md)

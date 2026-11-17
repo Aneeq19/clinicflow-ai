@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clinicflow-api",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-11-17",
+  "workers_dev": true,
+  "observability": {
+    "enabled": false,
+  },
+  "vars": {
+    "BUSINESS_SLUG": "pearl-dental-care",
+    "CLOUDFLARE_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  },
+  "ai": {
+    "binding": "AI",
+  },
+  "ratelimits": [
+    {
+      "name": "LOGIN_LIMITER",
+      "namespace_id": "21011",
+      "simple": {
+        "limit": 5,
+        "period": 60,
+      },
+    },
+    {
+      "name": "APPOINTMENT_LIMITER",
+      "namespace_id": "21012",
+      "simple": {
+        "limit": 5,
+        "period": 60,
+      },
+    },
+    {
+      "name": "CHAT_LIMITER",
+      "namespace_id": "21013",
+      "simple": {
+        "limit": 15,
+        "period": 60,
+      },
+    },
+    {
+      "name": "ADMIN_LIMITER",
+      "namespace_id": "21014",
+      "simple": {
+        "limit": 60,
+        "period": 60,
+      },
+    },
+    {
+      "name": "PUBLIC_LIMITER",
+      "namespace_id": "21015",
+      "simple": {
+        "limit": 60,
+        "period": 60,
+      },
+    },
+  ],
+  "keep_vars": true,
+}

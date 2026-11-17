@@ -34,3 +34,7 @@ Everything entered in Business settings is intended for public display, includin
 ## If a key is exposed
 
 Rotate it in its provider dashboard, update the backend environment and redeploy. Removing it from the latest Git commit alone is insufficient. Review access logs privately and purge exposed history where necessary. Do not paste secrets into chat, screenshots or GitHub issues.
+
+## Cloudflare adapter
+
+The JavaScript Worker uses the server-side slug, Supabase Auth user verification and membership checks, explicit row scoping, validated settings and human-controlled status changes. REST data requests use a server-only apikey; owner bearer tokens go only to Auth verification. Request bodies are bounded while streaming. Rate-limit bindings fail closed when unavailable and are approximate per Cloudflare location. Anonymous event writes use waitUntil. AI binding removes the need for a separate AI REST token here. Native rate limits and synthetic tests are not production/tenant-isolation certification; the same privacy and incident-response obligations apply.
