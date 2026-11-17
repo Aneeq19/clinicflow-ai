@@ -61,7 +61,8 @@ async function remote(
   try {
     response = await fetch(url, {
       method,
-      redirect: "error",
+      // Workers supports manual/follow, not the standard error mode.
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
       headers: {
         apikey: env.SUPABASE_SECRET_KEY,
@@ -75,6 +76,11 @@ async function remote(
       503,
       "Database or login service is temporarily unavailable.",
     );
+  }
+  // Never follow an unexpected redirect with the privileged Supabase apikey.
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
+    throw new HttpError(503, "Database endpoint redirected unexpectedly. Check the project URL.");
   }
   let data = null;
   if (method !== "HEAD" && response.status !== 204) {

@@ -124,7 +124,7 @@ function fixture() {
     assert.equal(url.origin, "https://synthetic.supabase.co");
     assert.equal(headers.get("apikey"), env.SUPABASE_SECRET_KEY);
     assert.ok(options.signal);
-    assert.equal(options.redirect, "error");
+    assert.equal(options.redirect, "manual");
     calls.push({ url, method, body, headers });
     if (url.pathname === "/auth/v1/user") {
       const token = headers.get("Authorization");
@@ -730,3 +730,18 @@ test("unknown routes stay private and do not leak thrown upstream errors", () =>
       false,
     );
   }));
+
+// Regress Cloudflare's supported redirect modes and keep privileged keys off redirect targets.
+test("Supabase redirects fail closed without following or exposing the key", () => using(async f => {
+  let sent = 0;
+  globalThis.fetch = async (url, options) => {
+    sent++;
+    assert.equal(new URL(url).origin, "https://synthetic.supabase.co");
+    assert.equal(options.redirect, "manual");
+    return new Response("redirect body", {status:302, headers:{Location:"https://untrusted.example/collect"}});
+  };
+  const response = await f.request("/health/db");
+  assert.equal(response.status,503);
+  assert.match((await response.json()).detail,/redirected unexpectedly/);
+  assert.equal(sent,1);
+}));
