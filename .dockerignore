@@ -1,0 +1,10 @@
+# Only runtime files may enter the Docker build context.
+**
+!Dockerfile
+!.dockerignore
+!backend/
+!backend/requirements.txt
+!backend/main.py
+!backend/owner_admin.py
+!backend/receptionist.py
+!backend/business_settings.py

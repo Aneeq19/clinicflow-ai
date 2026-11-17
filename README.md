@@ -2,11 +2,11 @@
 
 An AI receptionist demo for **Pearl Dental Care, Karachi**, a fictional business. Built with React + Vite, FastAPI, Supabase and Cloudflare Workers AI. Use synthetic customer details only.
 
-**Status:** application code and automated checks are prepared. The existing local website, appointment collection, AI responses and owner dashboard were tested by the builder. The new settings/embedding release still needs migration 003 in the builder's Supabase project, local visual checks and public deployment. No public demo URL is claimed here.
+**Status:** the builder reports migration 003, public settings changes, chatbot supplied-price answers and embedded appointment/status flows verified locally. Automated checks are documented below. Public deployment is still pending; no public demo URL is claimed here. A card-free demo deployment path is documented for Back4app Containers.
 
 ## Continue on Windows
 
-Start with **[tomorrow's exact checklist](docs/START_HERE.md)**. Pull the repository, run `backend/sql/003_business_settings.sql` in Supabase, install requirements and restart both servers. Keep your existing private `backend/.env`.
+Start with **[local setup checklist](docs/START_HERE.md)**. Pull the repository, run `backend/sql/003_business_settings.sql` in Supabase, install requirements and restart both servers. Keep your existing private `backend/.env`.
 
 ## Included
 
@@ -78,6 +78,7 @@ Current local verification: **24 backend tests**, frontend lint and production b
 ## Guides
 
 - [Windows handoff](docs/START_HERE.md)
+- [Card-free Back4app Containers demo deployment](docs/BACK4APP_DEPLOYMENT.md)
 - [Render + Cloudflare Pages deployment](docs/DEPLOYMENT.md)
 - [Security boundaries and remaining production work](docs/SECURITY.md)
 - [Sales demo and first customer onboarding](docs/SALES_AND_ONBOARDING.md)
