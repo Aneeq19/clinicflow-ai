@@ -86,3 +86,9 @@ Synthetic Node tests cover auth denial, business scoping, conflicts, validation,
 Rate limits are approximate per Cloudflare location, not strict worldwide counters. Requests to Supabase time out after 8 seconds. AI waits are bounded to 12 seconds; already-started inference can still use quota after an application timeout. Best-effort anonymous events use `waitUntil`; they store no chat text or phone. Platform request metadata may still exist; full observability is disabled in the config.
 
 One business per deployment remains the boundary. Full shared-tenant isolation and production privacy/retention/operations are unfinished; see SECURITY.md. No WhatsApp, live-calendar confirmation or messaging integration was added.
+
+## GitHub connection troubleshooting
+
+If Settings → Builds reports that the project is disconnected from GitHub, open Manage and check the Cloudflare Workers and Pages GitHub app's repository access. Under Only select repositories, add `clinicflow-ai` while keeping any existing repositories (such as `ajix`) selected, then Save. Refresh the Worker build settings and verify that the warning clears.
+
+A new push to `main` should start a source build after access is restored. Check the build's commit and logs rather than retrying an old runtime-variable deployment. A successful build must still be followed by `/health/db` and the live acceptance checks above. The build API token and runtime Supabase secret are separate credentials.
